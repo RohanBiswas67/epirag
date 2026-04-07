@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EpiRAG — Performance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=swap" rel="stylesheet"/>
+<style>
+    .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+    body { font-family:'IBM Plex Mono',monospace; background:#0a0e14; color:#d9e6fd; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-thumb { background:#3c495b; }
+    .card { background:#0e141c; border:1px solid #3c495b; padding:1.25rem; }
+    .stat-num { font-size:2rem; font-weight:700; color:#619eff; font-family:'Space Grotesk',sans-serif; }
+    .stat-lbl { font-size:0.65rem; color:#6a768a; text-transform:uppercase; letter-spacing:0.1em; }
+    .agent-card { border-left:3px solid; padding:0.75rem 1rem; background:#0a0e14; margin-bottom:0.5rem; }
+    .arch-node {
+        background:#0e141c; border:1px solid #3c495b;
+        padding:0.5rem 1rem; font-size:0.7rem;
+        text-align:center; white-space:nowrap;
+    }
+    .arch-arrow { color:#619eff; font-size:0.9rem; }
+    @keyframes fade-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in { animation:fade-in 0.4s ease forwards; }
+    .section-title {
+        font-family:'Space Grotesk',sans-serif;
+        font-size:0.7rem; text-transform:uppercase;
+        letter-spacing:0.15em; color:#619eff;
+        border-bottom:1px solid #3c495b;
+        padding-bottom:0.5rem; margin-bottom:1rem;
+    }
+</style>
+<script>
+    tailwind.config = {
+        darkMode:"class",
+        theme:{ extend:{ colors:{
+            "tertiary":"#619eff","outline-variant":"#3c495b",
+            "surface-container":"#121a25","on-surface":"#d9e6fd",
+            "on-surface-variant":"#9facc1"
+        }}}
+    }
+</script>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="flex justify-between items-center px-6 h-14 border-b border-[#30363d]/40 bg-[#0a0e14] sticky top-0 z-10">
+    <div class="flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2 text-lg font-bold text-slate-100 font-['Space_Grotesk'] tracking-tight">
+            <span class="material-symbols-outlined text-xl">biotech</span>
+            EpiRAG
+        </a>
+        <nav class="flex items-center gap-5">
+            <a href="/" class="text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-100 transition-colors">Research</a>
+            <a href="/performance" class="text-slate-100 border-b border-slate-100 pb-0.5 font-mono text-xs uppercase tracking-widest">Performance</a>
+            <a href="https://github.com/RohanBiswas67/epirag" target="_blank" class="flex items-center gap-1 text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-100 transition-colors">
+                GitHub
+                <span class="material-symbols-outlined text-sm">open_in_new</span>
+            </a>
+        </nav>
+    </div>
+    <button onclick="refreshMetrics()" class="font-mono text-[10px] text-tertiary flex items-center gap-1 hover:text-blue-300 transition-colors">
+        <span class="material-symbols-outlined text-sm">refresh</span> Refresh
+    </button>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-10 space-y-10">
+
+    <!-- Page title -->
+    <div class="border-l-4 border-tertiary pl-5 fade-in">
+        <h1 class="text-3xl font-bold font-['Space_Grotesk'] uppercase tracking-tight text-on-surface">System Performance</h1>
+        <p class="text-on-surface-variant text-sm mt-1">Live session metrics · architecture overview · agent roster</p>
+    </div>
+
+    <!-- Session Stats -->
+    <section class="fade-in">
+        <div class="section-title flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">speed</span>
+            Session Metrics
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="card text-center">
+                <div class="stat-num" id="m-total">—</div>
+                <div class="stat-lbl">Queries</div>
+            </div>
+            <div class="card text-center">
+                <div class="stat-num" id="m-latency">—</div>
+                <div class="stat-lbl">Avg Latency (ms)</div>
+            </div>
+            <div class="card text-center">
+                <div class="stat-num" id="m-debate">—</div>
+                <div class="stat-lbl">Debate Queries</div>
+            </div>
+            <div class="card text-center">
+                <div class="stat-num" id="m-uptime">—</div>
+                <div class="stat-lbl">Uptime (min)</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts row -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6 fade-in">
+        <!-- Mode distribution -->
+        <div class="card">
+            <div class="section-title">Query Mode Distribution</div>
+            <div class="flex justify-center">
+                <canvas id="modeChart" width="220" height="220"></canvas>
+            </div>
+        </div>
+        <!-- Latency chart -->
+        <div class="card">
+            <div class="section-title">Recent Query Latencies (ms)</div>
+            <canvas id="latencyChart" height="220"></canvas>
+        </div>
+    </section>
+
+    <!-- Architecture -->
+    <section class="fade-in">
+        <div class="section-title flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">account_tree</span>
+            System Architecture
+        </div>
+        <div class="card overflow-x-auto">
+            <div class="flex flex-col items-center gap-1 min-w-max mx-auto py-2 text-[10px]">
+
+                <!-- Row 1 -->
+                <div class="arch-node text-tertiary font-bold">User Query</div>
+                <div class="arch-arrow">↓</div>
+
+                <!-- Retrieval row -->
+                <div class="flex items-center gap-2">
+                    <div class="arch-node">
+                        <div class="text-tertiary font-bold mb-1">Local Retrieval</div>
+                        <div class="text-on-surface-variant">ChromaDB · all-MiniLM-L6</div>
+                        <div class="text-on-surface-variant">10,681 chunks · 19 papers</div>
+                    </div>
+                    <div class="arch-arrow">↔</div>
+                    <div class="arch-node">
+                        <div class="text-green-400 font-bold mb-1">Web Fallback</div>
+                        <div class="text-on-surface-variant">DuckDuckGo (primary)</div>
+                        <div class="text-on-surface-variant">Tavily (fallback)</div>
+                    </div>
+                </div>
+                <div class="text-[9px] text-on-surface-variant">sim &lt; 0.45 OR recency keywords → web triggered</div>
+                <div class="arch-arrow">↓</div>
+
+                <!-- Debate row -->
+                <div class="arch-node border-tertiary/50 w-full max-w-xl">
+                    <div class="text-tertiary font-bold mb-2">Multi-Agent Swarm Debate</div>
+                    <div class="grid grid-cols-4 gap-2 text-[9px]">
+                        <div class="text-center p-1 border border-red-900 bg-red-950/20">
+                            <div class="text-red-400 font-bold">Alpha</div>
+                            <div class="text-on-surface-variant">Llama 3.1 8B</div>
+                            <div class="text-on-surface-variant">Skeptic</div>
+                        </div>
+                        <div class="text-center p-1 border border-yellow-900 bg-yellow-950/20">
+                            <div class="text-yellow-400 font-bold">Beta</div>
+                            <div class="text-on-surface-variant">Qwen 2.5 7B</div>
+                            <div class="text-on-surface-variant">Literalist</div>
+                        </div>
+                        <div class="text-center p-1 border border-green-900 bg-green-950/20">
+                            <div class="text-green-400 font-bold">Gamma</div>
+                            <div class="text-on-surface-variant">Zephyr 7B</div>
+                            <div class="text-on-surface-variant">Connector</div>
+                        </div>
+                        <div class="text-center p-1 border border-purple-900 bg-purple-950/20">
+                            <div class="text-purple-400 font-bold">Delta</div>
+                            <div class="text-on-surface-variant">DeepSeek R1</div>
+                            <div class="text-on-surface-variant">Reasoner</div>
+                        </div>
+                    </div>
+                    <div class="text-[9px] text-on-surface-variant mt-2">Round 1: independent answers · Round 2+: argue · convergence check</div>
+                </div>
+                <div class="arch-arrow">↓</div>
+
+                <!-- Synthesis -->
+                <div class="arch-node border-blue-900/50 bg-blue-950/10">
+                    <div class="text-tertiary font-bold">Epsilon — Synthesizer</div>
+                    <div class="text-on-surface-variant text-[9px]">Llama 3.3 70B Versatile · Groq · reconciles debate → final answer</div>
+                </div>
+                <div class="arch-arrow">↓</div>
+
+                <!-- Citation enrichment -->
+                <div class="arch-node">
+                    <div class="font-bold mb-1">Citation Enrichment</div>
+                    <div class="flex gap-3 text-[9px] text-on-surface-variant">
+                        <span>Semantic Scholar API</span>
+                        <span>arXiv API</span>
+                        <span>OpenAlex API</span>
+                        <span>PubMed E-utils</span>
+                    </div>
+                </div>
+                <div class="arch-arrow">↓</div>
+
+                <div class="arch-node text-tertiary font-bold">Final Answer + Sources + Debate Transcript</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Agent roster -->
+    <section class="fade-in">
+        <div class="section-title flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">groups</span>
+            Agent Roster
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="agent-card border-red-500">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-red-400 font-bold text-sm">Alpha — Skeptic</span>
+                    <span class="text-[9px] text-on-surface-variant">cerebras</span>
+                </div>
+                <div class="text-[10px] text-on-surface-variant mb-1">meta-llama/Llama-3.1-8B-Instruct</div>
+                <div class="text-[10px] text-on-surface-variant">Challenges every claim aggressively. Demands evidence. Points out what is NOT in the sources.</div>
+            </div>
+            <div class="agent-card border-yellow-500">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-yellow-400 font-bold text-sm">Beta — Literalist</span>
+                    <span class="text-[9px] text-on-surface-variant">together</span>
+                </div>
+                <div class="text-[10px] text-on-surface-variant mb-1">Qwen/Qwen2.5-7B-Instruct</div>
+                <div class="text-[10px] text-on-surface-variant">Accepts only what is explicitly stated. Rejects all inferences and extrapolations.</div>
+            </div>
+            <div class="agent-card border-green-500">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-green-400 font-bold text-sm">Gamma — Connector</span>
+                    <span class="text-[9px] text-on-surface-variant">featherless-ai</span>
+                </div>
+                <div class="text-[10px] text-on-surface-variant mb-1">HuggingFaceH4/zephyr-7b-beta</div>
+                <div class="text-[10px] text-on-surface-variant">Finds non-obvious connections between sources. Thinks laterally across papers.</div>
+            </div>
+            <div class="agent-card border-purple-500">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-purple-400 font-bold text-sm">Delta — Deep Reasoner</span>
+                    <span class="text-[9px] text-on-surface-variant">sambanova</span>
+                </div>
+                <div class="text-[10px] text-on-surface-variant mb-1">deepseek-ai/DeepSeek-R1</div>
+                <div class="text-[10px] text-on-surface-variant">Moves slowly and carefully. Checks every logical step. Flags hidden assumptions.</div>
+            </div>
+            <div class="agent-card border-blue-500 md:col-span-2">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-tertiary font-bold text-sm">Epsilon — Synthesizer</span>
+                    <span class="text-[9px] text-on-surface-variant">groq</span>
+                </div>
+                <div class="text-[10px] text-on-surface-variant mb-1">llama-3.3-70b-versatile · Larger context window for full debate reconciliation</div>
+                <div class="text-[10px] text-on-surface-variant">Reconciles all agent arguments. Identifies consensus. Produces final authoritative answer with citations and confidence rating.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Corpus stats -->
+    <section class="fade-in">
+        <div class="section-title flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">database</span>
+            Corpus
+        </div>
+        <div class="card">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="text-center">
+                    <div class="stat-num" id="c-chunks">—</div>
+                    <div class="stat-lbl">Chunks</div>
+                </div>
+                <div class="text-center">
+                    <div class="stat-num" id="c-papers">—</div>
+                    <div class="stat-lbl">Papers</div>
+                </div>
+                <div class="text-center">
+                    <div class="stat-num text-green-400">0.45</div>
+                    <div class="stat-lbl">Fallback Threshold</div>
+                </div>
+                <div class="text-center">
+                    <div class="stat-num text-green-400" id="c-status">—</div>
+                    <div class="stat-lbl">Corpus Status</div>
+                </div>
+            </div>
+            <div class="section-title mt-4">Indexed Papers</div>
+            <div id="paper-list" class="grid grid-cols-1 md:grid-cols-2 gap-1 text-[10px] text-on-surface-variant"></div>
+        </div>
+    </section>
+
+
+</main>
+
+<script>
+const API_BASE = window.location.origin;
+let modeChart, latChart;
+
+async function refreshMetrics() {
+    const [mRes, sRes] = await Promise.all([
+        fetch(`${API_BASE}/api/metrics`),
+        fetch(`${API_BASE}/api/stats`)
+    ]);
+    const m = await mRes.json();
+    const s = await sRes.json();
+
+    // Session stats
+    document.getElementById("m-total").textContent   = m.queries_total;
+    document.getElementById("m-latency").textContent = m.avg_latency_ms;
+    document.getElementById("m-debate").textContent  = m.queries_debate;
+    document.getElementById("m-uptime").textContent  = Math.floor(m.uptime_seconds / 60);
+
+    // Corpus
+    document.getElementById("c-chunks").textContent = (s.chunks || 0).toLocaleString();
+    document.getElementById("c-papers").textContent = s.papers || 0;
+    const statusEl = document.getElementById("c-status");
+    if (s.status === "online") {
+        statusEl.innerHTML = '<span class="material-symbols-outlined text-green-400 text-base">check_circle</span>';
+    } else {
+        statusEl.innerHTML = '<span class="material-symbols-outlined text-red-400 text-base">error</span>';
+    }
+
+    const pl = document.getElementById("paper-list");
+    pl.innerHTML = (s.paperList || []).map(p =>
+        `<div class="py-0.5 border-b border-outline-variant/20 truncate" title="${p}">· ${p}</div>`
+    ).join("");
+
+    // Mode donut chart
+    const modeData = [m.queries_local, m.queries_hybrid, m.queries_web];
+    if (modeChart) {
+        modeChart.data.datasets[0].data = modeData;
+        modeChart.update();
+    } else {
+        modeChart = new Chart(document.getElementById("modeChart"), {
+            type: "doughnut",
+            data: {
+                labels:   ["Local", "Hybrid", "Web"],
+                datasets: [{
+                    data:            modeData,
+                    backgroundColor: ["#619eff", "#a855f7", "#4ade80"],
+                    borderColor:     "#0a0e14",
+                    borderWidth:     3,
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: { color: "#9facc1", font: { family: "IBM Plex Mono", size: 10 } }
+                    }
+                },
+                cutout: "65%"
+            }
+        });
+    }
+
+    // Latency line chart
+    const lats   = m.latencies_ms || [];
+    const labels = lats.map((_, i) => i + 1);
+    if (latChart) {
+        latChart.data.labels            = labels;
+        latChart.data.datasets[0].data  = lats;
+        latChart.update();
+    } else {
+        latChart = new Chart(document.getElementById("latencyChart"), {
+            type: "line",
+            data: {
+                labels,
+                datasets: [{
+                    label:           "Latency ms",
+                    data:            lats,
+                    borderColor:     "#619eff",
+                    backgroundColor: "rgba(97,158,255,0.08)",
+                    tension:         0.3,
+                    fill:            true,
+                    pointRadius:     2,
+                }]
+            },
+            options: {
+                scales: {
+                    x: { ticks: { color: "#6a768a", font: { size: 9 } }, grid: { color: "#1e2d41" } },
+                    y: { ticks: { color: "#6a768a", font: { size: 9 } }, grid: { color: "#1e2d41" } }
+                },
+                plugins: { legend: { labels: { color: "#9facc1", font: { size: 10 } } } }
+            }
+        });
+    }
+}
+
+refreshMetrics();
+setInterval(refreshMetrics, 15000);
+</script>
+</body>
+</html>

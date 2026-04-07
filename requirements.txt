@@ -1,0 +1,11 @@
+pymupdf
+chromadb
+sentence-transformers
+groq
+tavily-python
+python-dotenv
+flask
+flask-cors
+huggingface_hub
+requests
+ddgs

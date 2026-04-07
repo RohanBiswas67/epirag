@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EpiRAG Research Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    body { font-family: 'Inter', sans-serif; background-color: #0a0e14; }
+    .font-mono  { font-family: 'IBM Plex Mono', monospace; }
+    .font-headline { font-family: 'Space Grotesk', sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0a0e14; }
+    ::-webkit-scrollbar-thumb { background: #3c495b; }
+
+    /* Typing cursor animation */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor::after { content:'|'; animation: blink 1s infinite; margin-left:2px; color:#619eff; }
+
+    /* Trace log pulse */
+    @keyframes trace-in { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
+    .trace-step { animation: trace-in 0.3s ease forwards; opacity:0; }
+
+    /* Source card slide */
+    @keyframes slide-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .source-card { animation: slide-in 0.25s ease forwards; opacity:0; }
+
+    /* Paper list scroll */
+    .paper-list { max-height: 180px; overflow-y: auto; }
+    .paper-list::-webkit-scrollbar { width: 2px; }
+    .paper-list::-webkit-scrollbar-thumb { background: #3c495b; }
+
+    /* Live debate panel */
+    #live-debate-panel {
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        width: 320px;
+        max-height: 420px;
+        z-index: 100;
+        display: none;
+    }
+    #live-debate-panel.active { display: block; }
+    #debate-feed {
+        max-height: 300px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+    }
+    #debate-feed::-webkit-scrollbar { width: 2px; }
+    #debate-feed::-webkit-scrollbar-thumb { background: #3c495b; }
+
+    @keyframes msg-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .debate-msg { animation: msg-in 0.2s ease forwards; }
+
+    @keyframes typing { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .typing-dot { animation: typing 1s infinite; display:inline-block; }
+
+    /* Shimmer loading */
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .shimmer {
+        background: linear-gradient(90deg, #16202e 25%, #1e2d41 50%, #16202e 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+
+    /* Draggable trace log */
+    #trace-panel {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 256px;
+        z-index: 100;
+        user-select: none;
+    }
+    #trace-handle {
+        cursor: grab;
+    }
+    #trace-handle:active { cursor: grabbing; }
+    #trace-panel.dragging { opacity: 0.92; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+
+    /* Markdown rendering inside answer block */
+    #answer-text h1,#answer-text h2,#answer-text h3 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        color: #d9e6fd;
+        margin: 1rem 0 0.5rem;
+    }
+    #answer-text h1 { font-size: 1.2rem; }
+    #answer-text h2 { font-size: 1.05rem; }
+    #answer-text h3 { font-size: 0.95rem; color: #619eff; }
+    #answer-text p  { margin-bottom: 0.75rem; line-height: 1.75; }
+    #answer-text strong { color: #d9e6fd; font-weight: 600; }
+    #answer-text em { color: #9facc1; font-style: italic; }
+    #answer-text a  { color: #619eff; text-decoration: underline; text-underline-offset: 3px; }
+    #answer-text a:hover { color: #93b8ff; }
+    #answer-text ul,#answer-text ol { padding-left: 1.4rem; margin-bottom: 0.75rem; }
+    #answer-text li { margin-bottom: 0.35rem; line-height: 1.65; }
+    #answer-text ul li { list-style-type: disc; }
+    #answer-text ol li { list-style-type: decimal; }
+    #answer-text code {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.82em;
+        background: #16202e;
+        border: 1px solid #3c495b;
+        padding: 1px 5px;
+        color: #3fb950;
+    }
+    #answer-text blockquote {
+        border-left: 3px solid #619eff;
+        padding-left: 1rem;
+        color: #9facc1;
+        margin: 0.75rem 0;
+    }
+    #answer-text hr { border-color: #3c495b; margin: 1rem 0; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    "primary-container": "#41484c",
+                    "on-secondary-container": "#bac0c8",
+                    "on-background": "#d9e6fd",
+                    "outline-variant": "#3c495b",
+                    "outline": "#6a768a",
+                    "background": "#0a0e14",
+                    "secondary": "#989ea7",
+                    "tertiary": "#619eff",
+                    "on-surface-variant": "#9facc1",
+                    "on-surface": "#d9e6fd",
+                    "surface-container-low": "#0e141c",
+                    "surface-container": "#121a25",
+                    "surface-container-high": "#16202e",
+                    "surface-container-highest": "#1a2637",
+                    "surface-container-lowest": "#000000",
+                    "surface": "#0a0e14",
+                    "primary": "#c1c7cd",
+                    "on-primary": "#3b4146",
+                    "primary-dim": "#b3b9bf",
+                },
+                fontFamily: {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["Space Grotesk"]
+                },
+                borderRadius: {"DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px"},
+            },
+        },
+    }
+</script>
+</head>
+<body class="bg-background text-on-surface selection:bg-tertiary/30">
+
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-6 h-16 bg-[#0a0e14] border-b border-[#30363d]/40 fixed top-0 z-50">
+    <div class="flex items-center gap-8">
+        <div class="flex items-center gap-2 text-xl font-bold text-slate-100 tracking-tighter font-['Space_Grotesk']">
+    		<span class="material-symbols-outlined text-2xl">biotech</span>
+    		EpiRAG
+	</div>
+        <nav class="hidden md:flex items-center gap-6">
+            <a class="text-slate-100 border-b-2 border-slate-100 pb-1 font-mono text-xs uppercase tracking-widest" href="#">Research</a>
+            
+            <a class="text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-100 transition-colors" href="/performance">Performance</a>
+            <a class="flex items-center gap-1 text-slate-400 font-mono text-xs uppercase tracking-widest hover:text-slate-100 transition-colors" href="https://github.com/RohanBiswas67/epirag" target="_blank">
+            GitHub
+                <span class="material-symbols-outlined text-sm">open_in_new</span>
+            </a>
+        </nav>
+    </div>
+    <div class="flex items-center gap-4">
+        <span id="system-status" class="font-mono text-[10px] text-tertiary flex items-center gap-2">
+            <span class="w-2 h-2 bg-tertiary animate-pulse"></span>
+            SYSTEM ACTIVE
+        </span>
+    </div>
+</header>
+
+<div class="flex min-h-screen pt-16">
+
+    <!-- Sidebar — Corpus Info (no API keys) -->
+    <aside class="hidden md:flex flex-col h-[calc(100vh-64px)] w-64 p-4 gap-5 bg-[#0e141c] border-r border-[#30363d]/40 sticky top-16 overflow-y-auto">
+
+        <div class="space-y-1">
+            <h2 class="flex items-center gap-2 text-slate-100 font-bold font-mono text-xs uppercase tracking-widest">
+                <span class="material-symbols-outlined text-sm">database</span>
+                CORPUS
+            </h2>
+            <p class="text-[10px] text-on-surface-variant font-mono">v2.0 · EpiRAG Index</p>
+        </div>
+
+        <!-- Corpus Stats -->
+        <div class="p-4 border border-outline-variant/40 bg-surface-container space-y-3">
+            <h3 class="font-mono text-[10px] text-tertiary flex items-center gap-2">
+                <span class="material-symbols-outlined text-xs">analytics</span>
+                INDEX STATS
+            </h3>
+            <div class="space-y-2 font-mono text-[11px]">
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Chunks:</span>
+                    <span id="stat-chunks" class="text-on-surface">—</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Papers:</span>
+                    <span id="stat-papers" class="text-on-surface">—</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Embeddings:</span>
+                    <span class="text-on-surface">MiniLM-L6</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">LLM:</span>
+                    <span class="text-on-surface">Llama 3.1</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Fallback:</span>
+                    <span class="text-tertiary">Tavily Web</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paper List -->
+        <div class="space-y-2">
+            <h3 class="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+                <span class="material-symbols-outlined text-xs">description</span>
+                INDEXED PAPERS
+            </h3>
+            <div id="paper-list" class="paper-list space-y-1">
+                <div class="shimmer h-3 w-full rounded-none"></div>
+                <div class="shimmer h-3 w-4/5 rounded-none mt-1"></div>
+                <div class="shimmer h-3 w-full rounded-none mt-1"></div>
+                <div class="shimmer h-3 w-3/5 rounded-none mt-1"></div>
+            </div>
+        </div>
+
+        <!-- Retrieval Strategy -->
+        <div class="p-3 border border-outline-variant/40 bg-surface-container space-y-2">
+            <h3 class="font-mono text-[10px] text-on-surface-variant uppercase tracking-widest">RETRIEVAL STRATEGY</h3>
+            <div class="space-y-1.5 font-mono text-[10px] text-on-surface-variant">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-tertiary inline-block flex-shrink-0"></span>
+                    Local sim ≥ 0.45 → corpus
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-green-400 inline-block flex-shrink-0"></span>
+                    Sim &lt; 0.45 → web fallback
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-purple-400 inline-block flex-shrink-0"></span>
+                    Recency kw → forced hybrid
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-auto flex flex-col gap-2">
+            <a class="flex items-center gap-3 p-2 text-slate-500 hover:text-slate-300 font-mono text-[10px] uppercase tracking-widest transition-colors" href="https://github.com/RohanBiswas67/epirag" target="_blank">
+                <span class="material-symbols-outlined text-sm">code</span>
+                Source Code
+            </a>
+            <a class="flex items-center gap-3 p-2 text-slate-500 hover:text-slate-300 font-mono text-[10px] uppercase tracking-widest transition-colors" href="https://linkedin.com/in/rohan-biswas-0rb" target="_blank">
+                <span class="material-symbols-outlined text-sm">person</span>
+                Rohan Biswas
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 bg-surface-container-low min-h-full">
+        <div class="max-w-4xl mx-auto px-6 py-12">
+
+            <!-- Header -->
+            <div class="mb-12 border-l-4 border-tertiary pl-6">
+                <h1 class="text-4xl font-headline font-bold text-on-surface tracking-tight mb-2 uppercase">Semantic Research Engine</h1>
+                <p class="text-on-surface-variant font-mono text-sm">Query epidemic modeling literature with RAG-enhanced reasoning.</p>
+            </div>
+
+            <!-- Query Entry -->
+            <div class="bg-surface border border-outline-variant p-1 mb-8">
+                <div class="relative">
+                    <textarea id="query-input"
+                        class="w-full bg-surface-container-lowest text-on-surface font-mono text-sm p-4 focus:ring-0 focus:outline-none resize-none border-0"
+                        placeholder="Enter research query (e.g., 'What does Shalizi say about homophily and contagion?')..."
+                        rows="4"></textarea>
+                    <div class="absolute bottom-4 right-4 flex items-center gap-4">
+                        <span class="font-mono text-[10px] text-on-surface-variant hidden md:block">Press ⌘↵ to search</span>
+                        <button id="search-btn"
+                            class="bg-primary text-on-primary px-8 py-2 font-mono text-xs font-bold uppercase tracking-widest hover:bg-primary-dim transition-colors">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results — hidden until first query -->
+            <div id="results-area" class="space-y-6 hidden">
+
+                <!-- Result Metadata Header -->
+                <div class="flex items-center justify-between border-b border-outline-variant pb-2">
+                    <div class="flex items-center gap-4">
+                        <span id="mode-badge" class="border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest"></span>
+                        <span id="meta-line" class="text-on-surface-variant font-mono text-[10px]"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="copyAnswer()" title="Copy answer">
+                            <span class="material-symbols-outlined text-on-surface-variant text-sm hover:text-slate-100 transition-colors">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Answer Block -->
+                <div class="bg-surface-container border border-outline-variant p-8 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10">
+                        <span class="material-symbols-outlined text-6xl">psychology</span>
+                    </div>
+                    <h3 class="font-mono text-xs text-tertiary uppercase tracking-widest mb-4">Generated Synthesis</h3>
+                    <div id="answer-text" class="prose prose-invert max-w-none text-on-surface leading-relaxed font-body text-base space-y-4 whitespace-pre-wrap"></div>
+                </div>
+
+                <!-- Debate Transcript (hidden until debate runs) -->
+                <div id="debate-container" class="hidden border border-outline-variant mb-0">
+                    <button onclick="toggleDebate()" class="w-full flex items-center justify-between p-4 bg-surface-container-high hover:bg-surface-container-highest transition-colors">
+                        <span id="debate-label" class="font-mono text-xs uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">forum</span>
+                            Agent Debate Transcript
+                        </span>
+                        <span id="debate-chevron" class="material-symbols-outlined">expand_more</span>
+                    </button>
+                    <div id="debate-body" class="hidden bg-surface p-4 space-y-4 font-mono text-[11px]"></div>
+                </div>
+
+                <!-- Sources Accordion -->
+                <div id="sources-container" class="border border-outline-variant">
+                    <button onclick="toggleSources()" class="w-full flex items-center justify-between p-4 bg-surface-container-high hover:bg-surface-container-highest transition-colors">
+                        <span id="sources-label" class="font-mono text-xs uppercase tracking-widest flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">link</span>
+                            Sources (0)
+                        </span>
+                        <span id="sources-chevron" class="material-symbols-outlined">expand_more</span>
+                    </button>
+                    <div id="sources-list" class="divide-y divide-outline-variant/40 bg-surface"></div>
+                </div>
+
+            </div>
+
+            <!-- Loading skeleton — shown while querying -->
+            <div id="loading-area" class="space-y-6 hidden">
+                <div class="shimmer h-8 w-48 rounded-none"></div>
+                <div class="bg-surface-container border border-outline-variant p-8 space-y-3">
+                    <div class="shimmer h-3 w-32 rounded-none"></div>
+                    <div class="shimmer h-4 w-full rounded-none"></div>
+                    <div class="shimmer h-4 w-5/6 rounded-none"></div>
+                    <div class="shimmer h-4 w-4/6 rounded-none"></div>
+                    <div class="shimmer h-4 w-full rounded-none"></div>
+                    <div class="shimmer h-4 w-3/5 rounded-none"></div>
+                </div>
+                <div class="shimmer h-12 w-full rounded-none"></div>
+            </div>
+
+            <!-- Example Queries -->
+            <div id="examples-area" class="mt-12">
+                <h5 class="flex items-center gap-2 font-mono text-[10px] text-on-surface-variant uppercase tracking-widest mb-4">
+                    <span class="material-symbols-outlined text-xs">help</span>
+                        Example queries
+                </h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button onclick="setQuery(this)" class="text-left p-3 border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors group">
+                        <span class="font-mono text-[11px] text-on-surface group-hover:text-tertiary transition-colors">Explain Barabasi-Albert Model with real-life application example.</span>
+                    </button>
+                    <button onclick="setQuery(this)" class="text-left p-3 border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors group">
+                        <span class="font-mono text-[11px] text-on-surface group-hover:text-tertiary transition-colors">Explain Kemeny-Snell lumpability.</span>
+                    </button>
+                    <button onclick="setQuery(this)" class="text-left p-3 border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors group">
+                        <span class="font-mono text-[11px] text-on-surface group-hover:text-tertiary transition-colors">Latest GNN-based epidemic forecasting research 2026.</span>
+                    </button>
+                    <button onclick="setQuery(this)" class="text-left p-3 border border-outline-variant bg-surface-container-low hover:bg-surface-container transition-colors group">
+                        <span class="font-mono text-[11px] text-on-surface group-hover:text-tertiary transition-colors">Recent papers related to Network Science and Epidemiology in 2026</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- Live Debate Panel -->
+<div id="live-debate-panel">
+    <div class="bg-[#0a0e14] border border-outline-variant">
+        <div id="live-debate-handle" class="flex items-center justify-between p-3 cursor-grab select-none border-b border-outline-variant/40">
+            <span class="font-mono text-[10px] text-on-surface-variant flex items-center gap-2">
+                <span class="material-symbols-outlined text-xs">forum</span>
+                LIVE DEBATE
+            </span>
+            <div class="flex items-center gap-2">
+                <span id="debate-status-dot" class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+                <button onclick="closeLiveDebate()" class="text-outline hover:text-slate-300 transition-colors">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            </div>
+        </div>
+        <div id="debate-round-header" class="px-3 py-1.5 font-mono text-[9px] text-on-surface-variant border-b border-outline-variant/20 hidden"></div>
+        <div id="debate-feed" class="p-3 space-y-2"></div>
+    </div>
+</div>
+
+<!-- Trace Log — draggable panel -->
+<div id="trace-panel" class="hidden lg:block">
+    <div class="bg-[#0a0e14] border border-outline-variant p-4">
+        <!-- Drag handle -->
+        <div id="trace-handle" class="flex items-center justify-between mb-4 select-none">
+            <span class="font-mono text-[10px] text-on-surface-variant flex items-center gap-2">
+                <span class="material-symbols-outlined text-xs text-outline">drag_indicator</span>
+                TRACE LOG
+            </span>
+            <span id="trace-dot" class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+        </div>
+        <div id="trace-log" class="relative space-y-4 before:content-[''] before:absolute before:left-1 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant">
+            <div class="relative pl-6 text-on-surface-variant">
+                <div class="absolute left-0 top-1.5 w-2 h-2 bg-outline-variant border border-[#0a0e14]"></div>
+                <div class="font-mono text-[10px] font-bold">IDLE</div>
+                <div class="font-mono text-[9px]">Awaiting query...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let sourcesOpen = true;
+const API_BASE  = window.location.origin;  // same server
+
+// ── Load corpus stats on page load ───────────────────────────────────────────
+async function loadStats() {
+    try {
+        const res  = await fetch(`${API_BASE}/api/stats`);
+        const data = await res.json();
+
+        document.getElementById("stat-chunks").textContent = data.chunks.toLocaleString();
+        document.getElementById("stat-papers").textContent = data.papers;
+
+        const listEl = document.getElementById("paper-list");
+        listEl.innerHTML = "";
+        (data.paperList || []).forEach(p => {
+            const div = document.createElement("div");
+            div.className = "font-mono text-[10px] text-on-surface-variant py-0.5 border-b border-outline-variant/20 truncate hover:text-slate-300 transition-colors";
+            div.title = p;
+            div.textContent = p;
+            listEl.appendChild(div);
+        });
+
+        if (data.status === "offline") {
+            document.getElementById("system-status").innerHTML =
+                '<span class="w-2 h-2 bg-red-500"></span><span class="text-red-400">CORPUS OFFLINE</span>';
+        }
+    } catch (e) {
+        console.error("Stats load failed:", e);
+    }
+}
+
+// ── Trace log helpers ────────────────────────────────────────────────────────
+function setTrace(steps) {
+    const log = document.getElementById("trace-log");
+    const dot = document.getElementById("trace-dot");
+    dot.className = "w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse";
+    log.innerHTML = steps.map((s, i) => `
+        <div class="relative pl-6 trace-step" style="animation-delay:${i * 120}ms">
+            <div class="absolute left-0 top-1.5 w-2 h-2 ${s.done ? 'bg-tertiary' : 'bg-outline-variant'} border border-[#0a0e14]"></div>
+            <div class="font-mono text-[10px] ${s.done ? 'text-on-surface' : 'text-on-surface-variant'} font-bold">${s.label}</div>
+            <div class="font-mono text-[9px] text-on-surface-variant ${!s.done ? 'italic' : ''}">${s.sub}</div>
+        </div>
+    `).join("");
+}
+
+function setTraceDone(result) {
+    const dot = document.getElementById("trace-dot");
+    dot.className = "w-1.5 h-1.5 rounded-full bg-green-400";
+    setTrace([
+        { label: "QUERY_EMBED_GEN",  sub: "Success",                       done: true },
+        { label: "VECTOR_RETRIEVAL", sub: `Top-K: ${result.sources.filter(s=>s.type==="local").length} local`, done: true },
+        { label: result.mode === "local" ? "LOCAL_ONLY" : "TAVILY_SEARCH",
+          sub: result.mode === "local" ? `sim: ${result.avg_sim}` : `${result.sources.filter(s=>s.type==="web").length} web results`, done: true },
+        { label: "LLM_SYNTHESIS",    sub: `${result.latency_ms}ms · ~${result.tokens} tokens`, done: true },
+    ]);
+}
+
+// ── Mode badge ────────────────────────────────────────────────────────────────
+const MODE_CONFIG = {
+    local:   { label: "Local Mode",  cls: "bg-tertiary/10 border-tertiary text-tertiary" },
+    web:     { label: "Web Mode",    cls: "bg-green-900/30 border-green-500 text-green-400" },
+    hybrid:  { label: "Hybrid Mode", cls: "bg-purple-900/30 border-purple-500 text-purple-300" },
+    none:    { label: "No Results",  cls: "bg-red-900/30 border-red-500 text-red-400" },
+};
+
+// ── Main query handler ────────────────────────────────────────────────────────
+// ── Agent colors ─────────────────────────────────────────────────────────────
+const AGENT_COLORS = {
+    "Alpha":   { text: "text-red-400",    border: "border-red-900",    bg: "bg-red-950/30"    },
+    "Beta":    { text: "text-yellow-400", border: "border-yellow-900", bg: "bg-yellow-950/30" },
+    "Gamma":   { text: "text-green-400",  border: "border-green-900",  bg: "bg-green-950/30"  },
+    "Delta":   { text: "text-purple-400", border: "border-purple-900", bg: "bg-purple-950/30" },
+    "Epsilon": { text: "text-tertiary",   border: "border-blue-900",   bg: "bg-blue-950/30"   },
+};
+
+function openLiveDebate() {
+    const panel = document.getElementById("live-debate-panel");
+    panel.classList.add("active");
+    document.getElementById("debate-feed").innerHTML = "";
+    document.getElementById("debate-round-header").classList.add("hidden");
+    document.getElementById("debate-status-dot").className = "w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse";
+}
+
+function closeLiveDebate() {
+    document.getElementById("live-debate-panel").classList.remove("active");
+}
+
+function addDebateMessage(name, text, round) {
+    const feed  = document.getElementById("debate-feed");
+    const color = AGENT_COLORS[name] || { text: "text-on-surface-variant", border: "border-outline-variant", bg: "" };
+    const div   = document.createElement("div");
+    div.className = `debate-msg border-l-2 ${color.border} pl-2 py-1 ${color.bg} rounded-r`;
+    div.innerHTML = `
+        <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="font-mono text-[9px] font-bold ${color.text}">${name}</span>
+            <span class="font-mono text-[8px] text-outline">R${round}</span>
+        </div>
+        <div class="font-mono text-[9px] text-on-surface-variant leading-relaxed">${text.slice(0, 180)}${text.length > 180 ? "..." : ""}</div>
+    `;
+    feed.appendChild(div);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+async function runQuery() {
+    const question = document.getElementById("query-input").value.trim();
+    if (!question) return;
+
+    document.getElementById("results-area").classList.add("hidden");
+    document.getElementById("loading-area").classList.remove("hidden");
+    document.getElementById("examples-area").classList.add("hidden");
+    document.getElementById("search-btn").disabled    = true;
+    document.getElementById("search-btn").textContent = "Searching...";
+
+    setTrace([
+        { label: "QUERY_EMBED_GEN",  sub: "Running...",    done: false },
+        { label: "VECTOR_RETRIEVAL", sub: "Pending",       done: false },
+        { label: "AGENT_DEBATE",     sub: "Starting...",   done: false },
+        { label: "SYNTHESIS",        sub: "Pending",       done: false },
+    ]);
+
+    openLiveDebate();
+
+    try {
+        const response = await fetch(`${API_BASE}/api/query/stream`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ question })
+        });
+
+        const reader  = response.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = "";
+        let   finalData = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                try {
+                    const event = JSON.parse(line.slice(6));
+
+                    if (event.type === "round_start") {
+                        const header = document.getElementById("debate-round-header");
+                        header.textContent = `── Round ${event.round} ──`;
+                        header.classList.remove("hidden");
+                        setTrace([
+                            { label: "QUERY_EMBED_GEN",  sub: "Done",                    done: true  },
+                            { label: "VECTOR_RETRIEVAL", sub: "Done",                    done: true  },
+                            { label: "AGENT_DEBATE",     sub: `Round ${event.round}...`, done: false },
+                            { label: "SYNTHESIS",        sub: "Pending",                 done: false },
+                        ]);
+                    }
+
+                    else if (event.type === "agent_done") {
+                        addDebateMessage(event.name, event.text, event.round);
+                    }
+
+                    else if (event.type === "synthesizing") {
+                        const header = document.getElementById("debate-round-header");
+                        header.textContent = "── Epsilon synthesizing... ──";
+                        header.classList.remove("hidden");
+                        setTrace([
+                            { label: "QUERY_EMBED_GEN",  sub: "Done",         done: true  },
+                            { label: "VECTOR_RETRIEVAL", sub: "Done",         done: true  },
+                            { label: "AGENT_DEBATE",     sub: "Done",         done: true  },
+                            { label: "SYNTHESIS",        sub: "Streaming...", done: false },
+                        ]);
+                    }
+
+                    else if (event.type === "result") {
+                        finalData = event;
+                        document.getElementById("debate-status-dot").className =
+                            "w-1.5 h-1.5 rounded-full bg-green-400";
+                    }
+
+                    else if (event.type === "error") {
+                        throw new Error(event.text);
+                    }
+
+                } catch (parseErr) { /* skip malformed events */ }
+            }
+        }
+
+        if (finalData) {
+            renderResults(finalData);
+            setTraceDone(finalData);
+        }
+
+    } catch (err) {
+        document.getElementById("loading-area").classList.add("hidden");
+        document.getElementById("results-area").classList.remove("hidden");
+        document.getElementById("answer-text").textContent = `Error: ${err.message}`;
+        document.getElementById("mode-badge").textContent  = "ERROR";
+        closeLiveDebate();
+    } finally {
+        document.getElementById("search-btn").disabled    = false;
+        document.getElementById("search-btn").textContent = "Search";
+    }
+}
+
+function renderResults(data) {
+    document.getElementById("loading-area").classList.add("hidden");
+    document.getElementById("results-area").classList.remove("hidden");
+
+    // Mode badge
+    const mc  = MODE_CONFIG[data.mode] || MODE_CONFIG.none;
+    const badge = document.getElementById("mode-badge");
+    badge.textContent = mc.label;
+    badge.className   = `border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest ${mc.cls}`;
+
+    // Meta line
+    document.getElementById("meta-line").textContent =
+        `Lat: ${data.latency_ms}ms | Tokens: ~${data.tokens} | Sim: ${data.avg_sim}`;
+
+    // Answer — render markdown
+    if (typeof marked !== 'undefined') {
+        marked.setOptions({ breaks: true, gfm: true });
+        document.getElementById("answer-text").innerHTML = marked.parse(data.answer);
+    } else {
+        document.getElementById("answer-text").textContent = data.answer;
+    }
+
+    // Sources
+    const localCount = data.sources.filter(s => s.type === "local").length;
+    const webCount   = data.sources.filter(s => s.type === "web").length;
+    document.getElementById("sources-label").innerHTML = `
+        <span class="material-symbols-outlined text-sm">link</span>
+        Sources (${data.sources.length}) &nbsp;·&nbsp;
+        <span class="text-tertiary">${localCount} local</span>
+        ${webCount > 0 ? `&nbsp;<span class="text-green-400">${webCount} web</span>` : ""}
+    `;
+
+    const list = document.getElementById("sources-list");
+    list.innerHTML = "";
+    data.sources.forEach((src, i) => {
+        const isWeb  = src.type === "web";
+        const relPct = Math.round(src.similarity * 100);
+        const card   = document.createElement("div");
+        card.className = "source-card p-4 flex items-start justify-between hover:bg-surface-container-low transition-colors group";
+        card.style.animationDelay = `${i * 60}ms`;
+        card.innerHTML = `
+            <div class="space-y-1 flex-1 min-w-0 pr-4">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-[10px] ${isWeb ? 'text-green-400' : 'text-tertiary'} flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">${isWeb ? 'public' : 'description'}</span>
+                        [${String(i+1).padStart(2,'0')}]
+                    </span>
+                    <h4 class="text-sm font-semibold text-on-surface group-hover:text-tertiary transition-colors truncate">${src.source}</h4>
+                </div>
+                <p class="text-xs text-on-surface-variant pl-8 font-mono line-clamp-2">${src.text.slice(0, 120)}...</p>
+                ${(() => {
+                    const isWeb = src.type === 'web';
+                    const links = src.links || {};
+                    const btnCls = "inline-flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 border border-outline-variant hover:border-tertiary hover:text-tertiary text-on-surface-variant transition-colors";
+                    if (isWeb && src.url) {
+                        return `<a class="text-[10px] text-tertiary/80 pl-8 font-mono hover:underline flex items-center gap-1 truncate" href="${src.url}" target="_blank">${src.url.slice(0,60)}${src.url.length>60?'…':''}<span class="material-symbols-outlined text-[10px] flex-shrink-0">open_in_new</span></a>`;
+                    }
+                    let btns = '<div class="pl-8 flex flex-wrap gap-1.5 mt-1.5">';
+                    // PDF first — highest value
+                    const pdfUrl = links.pdf || links.arxiv_pdf;
+                    if (pdfUrl) btns += `<a class="${btnCls} text-green-400 border-green-800 hover:border-green-400 hover:text-green-300" href="${pdfUrl}" target="_blank">
+                        <span class="material-symbols-outlined text-[11px]">picture_as_pdf</span>
+                            PDF
+                        <span class="material-symbols-outlined text-[9px]">open_in_new</span>
+                    </a>`;
+                    // Exact matches
+                    if (links.semantic_scholar) btns += `<a class="${btnCls}" href="${links.semantic_scholar}" target="_blank">Semantic Scholar <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.arxiv)            btns += `<a class="${btnCls}" href="${links.arxiv}" target="_blank">arXiv <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.doi)              btns += `<a class="${btnCls}" href="${links.doi}" target="_blank">DOI <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.pubmed)           btns += `<a class="${btnCls}" href="${links.pubmed}" target="_blank">PubMed <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.openalex)         btns += `<a class="${btnCls}" href="${links.openalex}" target="_blank">OpenAlex <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    // Search fallbacks — always present
+                    if (!links.semantic_scholar && links.semantic_scholar_search) btns += `<a class="${btnCls}" href="${links.semantic_scholar_search}" target="_blank">Semantic Scholar <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (!links.arxiv && links.arxiv_search)                      btns += `<a class="${btnCls}" href="${links.arxiv_search}" target="_blank">arXiv <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (!links.pubmed && links.pubmed_search)                    btns += `<a class="${btnCls}" href="${links.pubmed_search}" target="_blank">PubMed <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    btns += '<span class="w-full h-px bg-outline-variant/30 my-0.5"></span>';
+                    // Always-present search links
+                    if (links.google_scholar) btns += `<a class="${btnCls}" href="${links.google_scholar}" target="_blank">Google Scholar <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.ncbi_search)    btns += `<a class="${btnCls}" href="${links.ncbi_search}" target="_blank">NCBI <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    if (links.google)         btns += `<a class="${btnCls}" href="${links.google}" target="_blank">Google <span class="material-symbols-outlined text-[9px]">open_in_new</span></a>`;
+                    btns += '</div>';
+                    return btns;
+                })()}
+            </div>
+            <div class="text-right flex-shrink-0">
+                <div class="text-[10px] font-mono text-on-surface-variant uppercase mb-1">Relevance</div>
+                <div class="text-sm font-mono font-bold ${relPct > 70 ? 'text-tertiary' : relPct > 40 ? 'text-yellow-400' : 'text-on-surface-variant'}">${relPct}%</div>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+
+    // Open sources accordion
+    sourcesOpen = true;
+    list.classList.remove("hidden");
+    document.getElementById("sources-chevron").textContent = "expand_less";
+
+    // Render debate transcript if present
+    const debateContainer = document.getElementById("debate-container");
+    const debateBody      = document.getElementById("debate-body");
+    const debateLabel     = document.getElementById("debate-label");
+
+    if (data.is_debate && data.debate_rounds && data.debate_rounds.length > 0) {
+        debateContainer.classList.remove("hidden");
+
+        const consensus = data.consensus ? "Consensus reached" : "Forced synthesis";
+        const agentCls = {
+            "Alpha":   "text-red-400",
+            "Beta":    "text-yellow-400",
+            "Gamma":   "text-green-400",
+            "Delta":   "text-purple-400",
+            "Epsilon": "text-tertiary"
+        };
+
+        debateLabel.innerHTML = `
+            <span class="material-symbols-outlined text-sm">forum</span>
+            Agent Debate · ${data.rounds_run} round${data.rounds_run > 1 ? "s" : ""} · ${consensus}
+        `;
+
+        let html = "";
+        data.debate_rounds.forEach((round, ri) => {
+            html += `<div class="border-b border-outline-variant/30 pb-3 mb-3">
+                <div class="text-tertiary mb-2 uppercase tracking-widest text-[10px]">── Round ${ri + 1} ──</div>`;
+            Object.entries(round).forEach(([agent, answer]) => {
+                const cls = agentCls[agent] || "text-on-surface-variant";
+                html += `<div class="mb-3">
+                    <div class="${cls} font-bold mb-1">${agent}</div>
+                    <div class="text-on-surface-variant leading-relaxed whitespace-pre-wrap">${answer.slice(0, 600)}${answer.length > 600 ? "..." : ""}</div>
+                </div>`;
+            });
+            html += "</div>";
+        });
+
+        debateBody.innerHTML = html;
+    } else {
+        debateContainer.classList.add("hidden");
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toggleDebate() {
+    const body    = document.getElementById("debate-body");
+    const chevron = document.getElementById("debate-chevron");
+    const open    = body.classList.toggle("hidden");
+    chevron.textContent = open ? "expand_more" : "expand_less";
+}
+
+function toggleSources() {
+    sourcesOpen = !sourcesOpen;
+    document.getElementById("sources-list").classList.toggle("hidden", !sourcesOpen);
+    document.getElementById("sources-chevron").textContent = sourcesOpen ? "expand_less" : "expand_more";
+}
+
+function setQuery(btn) {
+    document.getElementById("query-input").value = btn.querySelector("span").textContent;
+    document.getElementById("query-input").focus();
+}
+
+function copyAnswer() {
+    const text = document.getElementById("answer-text").textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('[onclick="copyAnswer()"] .material-symbols-outlined');
+        btn.textContent = "check";
+        setTimeout(() => btn.textContent = "content_copy", 1500);
+    });
+}
+
+// ── Keyboard shortcut: Cmd/Ctrl + Enter ──────────────────────────────────────
+document.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") runQuery();
+});
+document.getElementById("search-btn").addEventListener("click", runQuery);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+// Draggable live debate panel
+(function() {
+    const panel  = document.getElementById("live-debate-panel");
+    const handle = document.getElementById("live-debate-handle");
+    if (!panel || !handle) return;
+    let drag = false, sx, sy, sl, sb;
+    handle.addEventListener("mousedown", e => {
+        drag = true;
+        panel.classList.add("dragging");
+        const r = panel.getBoundingClientRect();
+        sx = e.clientX; sy = e.clientY;
+        sl = r.left;    sb = window.innerHeight - r.bottom;
+        e.preventDefault();
+    });
+    document.addEventListener("mousemove", e => {
+        if (!drag) return;
+        const newLeft   = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  sl + (e.clientX - sx)));
+        const newBottom = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, sb - (e.clientY - sy)));
+        panel.style.left   = newLeft   + "px";
+        panel.style.bottom = newBottom + "px";
+        panel.style.right  = "unset";
+    });
+    document.addEventListener("mouseup", () => { drag = false; panel.classList.remove("dragging"); });
+})();
+
+// Draggable trace panel
+(function() {
+    const panel  = document.getElementById("trace-panel");
+    const handle = document.getElementById("trace-handle");
+    let isDragging = false, startX, startY, startRight, startBottom;
+
+    handle.addEventListener("mousedown", e => {
+        isDragging = true;
+        panel.classList.add("dragging");
+        const rect = panel.getBoundingClientRect();
+        startX      = e.clientX;
+        startY      = e.clientY;
+        startRight  = window.innerWidth  - rect.right;
+        startBottom = window.innerHeight - rect.bottom;
+        e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", e => {
+        if (!isDragging) return;
+        const dx = startX - e.clientX;
+        const dy = startY - e.clientY;
+        const newRight  = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  startRight  + dx));
+        const newBottom = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startBottom + dy));
+        panel.style.right  = newRight  + "px";
+        panel.style.bottom = newBottom + "px";
+    });
+
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+        panel.classList.remove("dragging");
+    });
+
+    // Touch support
+    handle.addEventListener("touchstart", e => {
+        const t = e.touches[0];
+        const rect = panel.getBoundingClientRect();
+        startX      = t.clientX;
+        startY      = t.clientY;
+        startRight  = window.innerWidth  - rect.right;
+        startBottom = window.innerHeight - rect.bottom;
+    }, { passive: true });
+
+    handle.addEventListener("touchmove", e => {
+        const t = e.touches[0];
+        const dx = startX - t.clientX;
+        const dy = startY - t.clientY;
+        const newRight  = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  startRight  + dx));
+        const newBottom = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startBottom + dy));
+        panel.style.right  = newRight  + "px";
+        panel.style.bottom = newBottom + "px";
+    }, { passive: true });
+})();
+
+loadStats();
+</script>
+</body>
+</html>
