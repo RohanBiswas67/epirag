@@ -1,12 +1,3 @@
----
-title: EpiRAG
-emoji: 🧬
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
-short_description: RAG for Epidemiology and Network Science Research
----
 # EpiRAG
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-HF%20Spaces-yellow?logo=huggingface)](https://rohanb67-epirag.hf.space)
