@@ -2,85 +2,85 @@
 EpiRAG — agents.py
 ------------------
 Multi-agent swarm debate engine with real-time SSE callbacks.
-
 5 agents debate in parallel. Each posts events via callback as it responds,
 enabling live streaming to the browser via SSE.
-
 Agent roster:
-  Alpha   - meta-llama/Llama-3.1-8B-Instruct   (cerebras)    - Skeptic
-  Beta    - Qwen/Qwen2.5-7B-Instruct           (together)    - Literalist
-  Gamma   - HuggingFaceH4/zephyr-7b-beta       (featherless) - Connector
-  Delta   - deepseek-ai/DeepSeek-R1            (sambanova)   - Deep Reasoner
-  Epsilon - llama-3.3-70b-versatile            (groq)        - Synthesizer
+  Alpha   - llama-3.3-70b-versatile                - Skeptic
+  Beta    - gpt-oss-120b                           - Literalist
+  Gamma   - llama-4-scout-17b-16e-instruct         - Connector
+  Delta   - qwen3-32b                              - Deep Reasoner
+  Epsilon - gpt-oss-20b                            - Synthesizer
 """
 
 import concurrent.futures
 from groq import Groq
-from huggingface_hub import InferenceClient
 
 AGENTS = [
     {
         "name":        "Alpha",
-        "model":       "meta-llama/Llama-3.1-8B-Instruct",
-        "provider":    "cerebras",
-        "client_type": "hf",
+        "model":       "llama-3.3-70b-versatile",
+        "provider":    "groq",
+        "client_type": "groq",
         "color":       "red",
         "personality": (
             "You are Agent Alpha - a ruthless Skeptic. "
-            "Challenge every claim aggressively. Demand evidence. Math nerd. "
-            "Point out what is NOT in the sources. Be blunt and relentless."
+            "Challenge every claim aggressively. Demand evidence from the sources. "
+            "Point out what is NOT supported. Be blunt and relentless."
         )
     },
     {
         "name":        "Beta",
-        "model":       "Qwen/Qwen2.5-7B-Instruct",
-        "provider":    "together",
-        "client_type": "hf",
+        "model":       "openai/gpt-oss-120b",
+        "provider":    "groq",
+        "client_type": "groq",
         "color":       "yellow",
         "personality": (
-            "You are Agent Beta - a strict Literalist. "
-            "Accept ONLY what is explicitly stated in the source text. "
-            "Reject all inferences. If it is not literally written, it does not exist."
+            "You are Agent Beta - a Deep Reasoner. "
+            "Think step by step. Show your chain of thought. "
+            "Identify hidden assumptions and logical gaps the other agents miss. "
+            "Precision and thoroughness over speed."
         )
     },
     {
         "name":        "Gamma",
-        "model":       "HuggingFaceH4/zephyr-7b-beta",
-        "provider":    "featherless-ai",
-        "client_type": "hf",
+        "model":       "meta-llama/llama-4-scout-17b-16e-instruct",
+        "provider":    "groq",
+        "client_type": "groq",
         "color":       "green",
         "personality": (
             "You are Agent Gamma - a Pattern Connector. "
-            "Find non-obvious connections between sources."
-            "Look for relationships and synthesis opportunities others miss."
+            "Find non-obvious connections between different sources. "
+            "Look for relationships and synthesis opportunities others miss. "
+            "Think laterally and creatively."
         )
     },
     {
         "name":        "Delta",
-        "model":       "deepseek-ai/DeepSeek-R1",
-        "provider":    "sambanova",
-        "client_type": "hf",
+        "model":       "qwen/qwen3-32b",
+        "provider":    "groq",
+        "client_type": "groq",
         "color":       "purple",
         "personality": (
-            "You are Agent Delta - a Deep Reasoner. Prefer Detailed answer or to the point. "
-            "Move slowly and carefully. Check every logical step. "
-            "Flag hidden assumptions and claims beyond what sources support."
+            "You are Agent Delta - a strict Literalist. "
+            "Accept ONLY what is explicitly stated in the source text. "
+            "Reject all inferences and extrapolations. "
+            "If it is not literally written in the excerpts, it does not exist."
         )
     },
     {
         "name":        "Epsilon",
-        "model":       "llama-3.3-70b-versatile",
+        "model":       "openai/gpt-oss-20b",
         "provider":    "groq",
         "client_type": "groq",
         "color":       "blue",
         "personality": (
             "You are Agent Epsilon - the Synthesizer. "
-            "Reconcile the debate. Find where agents agree and disagree. "
-            "Produce a final authoritative answer with source citations."
+            "Read all agents arguments, identify where they agree and disagree, "
+            "and produce a final authoritative answer incorporating the strongest points. "
+            "Be decisive. Cite sources clearly."
         )
     },
 ]
-
 MAX_ROUNDS       = 3
 MAX_TOKENS_AGENT = 500
 MAX_TOKENS_SYNTH = 900
@@ -88,7 +88,7 @@ TIMEOUT_SECONDS  = 30
 CONTEXT_LIMIT    = 3000   # chars fed to synthesizer to avoid 413
 
 DOMAIN_GUARD = """
-SCOPE: EpiRAG — strictly epidemic modeling, network science, mathematical epidemiology, disease biology and related epidemiology.
+SCOPE: EpiRAG - strictly epidemic modeling, network science, mathematical epidemiology.
 Do NOT answer anything outside this domain. If off-topic, say so and stop.
 """
 
@@ -183,15 +183,12 @@ def _converged(answers):
 def run_debate(question, context, groq_key, hf_token, callback=None):
     """
     Run the full multi-agent swarm debate.
-
     callback(event: dict) is called after each agent responds, enabling SSE streaming.
-
     event shapes:
       {"type": "agent_done",   "round": int, "name": str, "color": str, "text": str}
       {"type": "round_start",  "round": int}
       {"type": "synthesizing"}
       {"type": "done",         "consensus": bool, "rounds": int}
-
     Returns:
       {"final_answer", "debate_rounds", "consensus", "rounds_run", "agent_count"}
     """
@@ -204,7 +201,7 @@ def run_debate(question, context, groq_key, hf_token, callback=None):
     agent_colors   = {a["name"]: a["color"] for a in AGENTS}
     debate_rounds  = []
 
-    # -- Round 1 ------------------------------------------------------------
+    # -- Round 1 ----------------------------
     emit({"type": "round_start", "round": 1})
     round1 = {}
 
@@ -231,7 +228,7 @@ def run_debate(question, context, groq_key, hf_token, callback=None):
     current      = round1
     rounds_run   = 1
 
-    # -- Rounds 2+ ------------------------------------------------------------
+    # -- Rounds 2+ ----------------------------
     while not consensus and rounds_run < MAX_ROUNDS:
         rounds_run += 1
         emit({"type": "round_start", "round": rounds_run})
@@ -259,9 +256,11 @@ def run_debate(question, context, groq_key, hf_token, callback=None):
         current    = next_round
         consensus  = _converged(next_round)
 
-    # -- Synthesis ------------------------------------------------------------
+    # -- Synthesis ----------------------------
     emit({"type": "synthesizing"})
-    final = _call_agent(synthesizer, _synth_msgs(question, context, debate_rounds),
+    # Truncate context for synthesis to avoid 413 token limit errors
+    ctx_trunc = context[:4000] if len(context) > 4000 else context
+    final = _call_agent(synthesizer, _synth_msgs(question, ctx_trunc, debate_rounds),
                         groq_key, hf_token, max_tokens=MAX_TOKENS_SYNTH)
     emit({"type": "done", "consensus": consensus, "rounds": rounds_run})
 
