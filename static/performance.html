@@ -117,18 +117,15 @@
     </section>
 
     <!-- Architecture -->
-    <section class="fade-in">
-        <div class="section-title flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm">account_tree</span>
-            System Architecture
-        </div>
+   <section class="fade-in">
+     <div class="section-title">System Architecture</div>
         <div class="card overflow-x-auto">
             <div class="flex flex-col items-center gap-1 min-w-max mx-auto py-2 text-[10px]">
-
+ 
                 <!-- Row 1 -->
                 <div class="arch-node text-tertiary font-bold">User Query</div>
                 <div class="arch-arrow">↓</div>
-
+ 
                 <!-- Retrieval row -->
                 <div class="flex items-center gap-2">
                     <div class="arch-node">
@@ -145,43 +142,43 @@
                 </div>
                 <div class="text-[9px] text-on-surface-variant">sim &lt; 0.45 OR recency keywords → web triggered</div>
                 <div class="arch-arrow">↓</div>
-
+ 
                 <!-- Debate row -->
                 <div class="arch-node border-tertiary/50 w-full max-w-xl">
                     <div class="text-tertiary font-bold mb-2">Multi-Agent Swarm Debate</div>
                     <div class="grid grid-cols-4 gap-2 text-[9px]">
                         <div class="text-center p-1 border border-red-900 bg-red-950/20">
                             <div class="text-red-400 font-bold">Alpha</div>
-                            <div class="text-on-surface-variant">Llama 3.1 8B</div>
+                            <div class="text-on-surface-variant">Llama 3.3 70B</div>
                             <div class="text-on-surface-variant">Skeptic</div>
                         </div>
                         <div class="text-center p-1 border border-yellow-900 bg-yellow-950/20">
                             <div class="text-yellow-400 font-bold">Beta</div>
-                            <div class="text-on-surface-variant">Qwen 2.5 7B</div>
+                            <div class="text-on-surface-variant">GPT-OSS 120B</div>
                             <div class="text-on-surface-variant">Literalist</div>
                         </div>
                         <div class="text-center p-1 border border-green-900 bg-green-950/20">
                             <div class="text-green-400 font-bold">Gamma</div>
-                            <div class="text-on-surface-variant">Zephyr 7B</div>
+                            <div class="text-on-surface-variant">Llama 4 Scout</div>
                             <div class="text-on-surface-variant">Connector</div>
                         </div>
                         <div class="text-center p-1 border border-purple-900 bg-purple-950/20">
                             <div class="text-purple-400 font-bold">Delta</div>
-                            <div class="text-on-surface-variant">DeepSeek R1</div>
+                            <div class="text-on-surface-variant">Qwen3-32B</div>
                             <div class="text-on-surface-variant">Reasoner</div>
                         </div>
                     </div>
                     <div class="text-[9px] text-on-surface-variant mt-2">Round 1: independent answers · Round 2+: argue · convergence check</div>
                 </div>
                 <div class="arch-arrow">↓</div>
-
+ 
                 <!-- Synthesis -->
                 <div class="arch-node border-blue-900/50 bg-blue-950/10">
                     <div class="text-tertiary font-bold">Epsilon — Synthesizer</div>
-                    <div class="text-on-surface-variant text-[9px]">Llama 3.3 70B Versatile · Groq · reconciles debate → final answer</div>
+                    <div class="text-on-surface-variant text-[9px]">GPT-OSS 20B · Groq · reconciles debate → final answer</div>
                 </div>
                 <div class="arch-arrow">↓</div>
-
+ 
                 <!-- Citation enrichment -->
                 <div class="arch-node">
                     <div class="font-bold mb-1">Citation Enrichment</div>
@@ -193,7 +190,7 @@
                     </div>
                 </div>
                 <div class="arch-arrow">↓</div>
-
+ 
                 <div class="arch-node text-tertiary font-bold">Final Answer + Sources + Debate Transcript</div>
             </div>
         </div>
@@ -201,49 +198,46 @@
 
     <!-- Agent roster -->
     <section class="fade-in">
-        <div class="section-title flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm">groups</span>
-            Agent Roster
-        </div>
+        <div class="section-title">Agent Roster</div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="agent-card border-red-500">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-red-400 font-bold text-sm">Alpha — Skeptic</span>
-                    <span class="text-[9px] text-on-surface-variant">cerebras</span>
+                    <span class="text-red-400 font-bold text-sm">Alpha - Skeptic</span>
+                    <span class="text-[9px] text-on-surface-variant">groq</span>
                 </div>
-                <div class="text-[10px] text-on-surface-variant mb-1">meta-llama/Llama-3.1-8B-Instruct</div>
+                <div class="text-[10px] text-on-surface-variant mb-1">llama-3.3-70b-versatile</div>
                 <div class="text-[10px] text-on-surface-variant">Challenges every claim aggressively. Demands evidence. Points out what is NOT in the sources.</div>
             </div>
             <div class="agent-card border-yellow-500">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-yellow-400 font-bold text-sm">Beta — Literalist</span>
-                    <span class="text-[9px] text-on-surface-variant">together</span>
+                    <span class="text-yellow-400 font-bold text-sm">Beta - Deep Reasoner</span>
+                    <span class="text-[9px] text-on-surface-variant">groq</span>
                 </div>
-                <div class="text-[10px] text-on-surface-variant mb-1">Qwen/Qwen2.5-7B-Instruct</div>
-                <div class="text-[10px] text-on-surface-variant">Accepts only what is explicitly stated. Rejects all inferences and extrapolations.</div>
+                <div class="text-[10px] text-on-surface-variant mb-1">openai/gpt-oss-120b</div>
+                <div class="text-[10px] text-on-surface-variant">Thinks step by step. Shows chain of thought. Identifies hidden assumptions and logical gaps.</div>
             </div>
             <div class="agent-card border-green-500">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-green-400 font-bold text-sm">Gamma — Connector</span>
-                    <span class="text-[9px] text-on-surface-variant">featherless-ai</span>
+                    <span class="text-green-400 font-bold text-sm">Gamma - Connector</span>
+                    <span class="text-[9px] text-on-surface-variant">groq</span>
                 </div>
-                <div class="text-[10px] text-on-surface-variant mb-1">HuggingFaceH4/zephyr-7b-beta</div>
+                <div class="text-[10px] text-on-surface-variant mb-1">meta-llama/llama-4-scout-17b-16e-instruct</div>
                 <div class="text-[10px] text-on-surface-variant">Finds non-obvious connections between sources. Thinks laterally across papers.</div>
             </div>
             <div class="agent-card border-purple-500">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-purple-400 font-bold text-sm">Delta — Deep Reasoner</span>
-                    <span class="text-[9px] text-on-surface-variant">sambanova</span>
+                    <span class="text-purple-400 font-bold text-sm">Delta - Literalist</span>
+                    <span class="text-[9px] text-on-surface-variant">groq</span>
                 </div>
-                <div class="text-[10px] text-on-surface-variant mb-1">deepseek-ai/DeepSeek-R1</div>
-                <div class="text-[10px] text-on-surface-variant">Moves slowly and carefully. Checks every logical step. Flags hidden assumptions.</div>
+                <div class="text-[10px] text-on-surface-variant mb-1">qwen/qwen3-32b</div>
+                <div class="text-[10px] text-on-surface-variant">Accepts only what is explicitly stated. Rejects all inferences and extrapolations.</div>
             </div>
             <div class="agent-card border-blue-500 md:col-span-2">
                 <div class="flex justify-between items-start mb-1">
-                    <span class="text-tertiary font-bold text-sm">Epsilon — Synthesizer</span>
+                    <span class="text-tertiary font-bold text-sm">Epsilon - Synthesizer</span>
                     <span class="text-[9px] text-on-surface-variant">groq</span>
                 </div>
-                <div class="text-[10px] text-on-surface-variant mb-1">llama-3.3-70b-versatile · Larger context window for full debate reconciliation</div>
+                <div class="text-[10px] text-on-surface-variant mb-1">openai/gpt-oss-20b · Fast synthesis of full debate transcript</div>
                 <div class="text-[10px] text-on-surface-variant">Reconciles all agent arguments. Identifies consensus. Produces final authoritative answer with citations and confidence rating.</div>
             </div>
         </div>
@@ -285,7 +279,6 @@
 <script>
 const API_BASE = window.location.origin;
 let modeChart, latChart;
-
 async function refreshMetrics() {
     const [mRes, sRes] = await Promise.all([
         fetch(`${API_BASE}/api/metrics`),
@@ -293,13 +286,11 @@ async function refreshMetrics() {
     ]);
     const m = await mRes.json();
     const s = await sRes.json();
-
     // Session stats
     document.getElementById("m-total").textContent   = m.queries_total;
     document.getElementById("m-latency").textContent = m.avg_latency_ms;
     document.getElementById("m-debate").textContent  = m.queries_debate;
     document.getElementById("m-uptime").textContent  = Math.floor(m.uptime_seconds / 60);
-
     // Corpus
     document.getElementById("c-chunks").textContent = (s.chunks || 0).toLocaleString();
     document.getElementById("c-papers").textContent = s.papers || 0;
@@ -309,12 +300,10 @@ async function refreshMetrics() {
     } else {
         statusEl.innerHTML = '<span class="material-symbols-outlined text-red-400 text-base">error</span>';
     }
-
     const pl = document.getElementById("paper-list");
     pl.innerHTML = (s.paperList || []).map(p =>
         `<div class="py-0.5 border-b border-outline-variant/20 truncate" title="${p}">· ${p}</div>`
     ).join("");
-
     // Mode donut chart
     const modeData = [m.queries_local, m.queries_hybrid, m.queries_web];
     if (modeChart) {
@@ -342,7 +331,6 @@ async function refreshMetrics() {
             }
         });
     }
-
     // Latency line chart
     const lats   = m.latencies_ms || [];
     const labels = lats.map((_, i) => i + 1);
@@ -375,7 +363,6 @@ async function refreshMetrics() {
         });
     }
 }
-
 refreshMetrics();
 setInterval(refreshMetrics, 15000);
 </script>
